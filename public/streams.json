@@ -1,0 +1,196 @@
+{
+  "streams": [
+    {
+      "id": "cambox11",
+      "name": "SALA 1 CAMBOX11 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX11.uv.es/axis-media/media.amp",
+      "group": "SALA 1"
+    },
+    {
+      "id": "cambox12",
+      "name": "SALA 1 CAMBOX12",
+      "url": "rtsp://root:root2021!@CAMBOX12.uv.es/axis-media/media.amp",
+      "group": "SALA 1"
+    },
+    {
+      "id": "cambox13",
+      "name": "SALA 1 CAMBOX13",
+      "url": "rtsp://root:root2021!@CAMBOX13.uv.es/axis-media/media.amp",
+      "group": "SALA 1"
+    },
+    {
+      "id": "cambox21",
+      "name": "SALA 2 CAMBOX21",
+      "url": "rtsp://root:root2021!@CAMBOX21.uv.es/axis-media/media.amp",
+      "group": "SALA 2"
+    },
+    {
+      "id": "cambox22",
+      "name": "SALA 2 CAMBOX22 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX22.uv.es/axis-media/media.amp",
+      "group": "SALA 2"
+    },
+    {
+      "id": "cambox23",
+      "name": "SALA 2 CAMBOX23",
+      "url": "rtsp://root:root2021!@CAMBOX23.uv.es/axis-media/media.amp",
+      "group": "SALA 2"
+    },
+    {
+      "id": "cambox31",
+      "name": "SALA 3 CAMBOX31",
+      "url": "rtsp://root:root2021!@CAMBOX31.uv.es/axis-media/media.amp",
+      "group": "SALA 3"
+    },
+    {
+      "id": "cambox32",
+      "name": "SALA 3 CAMBOX32 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX32.uv.es/axis-media/media.amp",
+      "group": "SALA 3"
+    },
+    {
+      "id": "cambox33",
+      "name": "SALA 3 CAMBOX33",
+      "url": "rtsp://root:root2021!@CAMBOX33.uv.es/axis-media/media.amp",
+      "group": "SALA 3"
+    },
+    {
+      "id": "cambox41",
+      "name": "UCI CAMBOX41",
+      "url": "rtsp://root:root2021!@CAMBOX41.uv.es/axis-media/media.amp",
+      "group": "UCI"
+    },
+    {
+      "id": "cambox42",
+      "name": "UCI CAMBOX42 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX42.uv.es/axis-media/media.amp",
+      "group": "UCI"
+    },
+    {
+      "id": "cambox43",
+      "name": "UCI CAMBOX43",
+      "url": "rtsp://root:root2021!@CAMBOX43.uv.es/axis-media/media.amp",
+      "group": "UCI"
+    },
+    {
+      "id": "cambox51",
+      "name": "URGENCIAS CAMBOX51",
+      "url": "rtsp://root:root2021!@CAMBOX51.uv.es/axis-media/media.amp",
+      "group": "URGENCIAS"
+    },
+    {
+      "id": "cambox52",
+      "name": "URGEN CAMBOX52 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX52.uv.es/axis-media/media.amp",
+      "group": "URGENCIAS"
+    },
+    {
+      "id": "cambox53",
+      "name": "URGENCIAS CAMBOX53",
+      "url": "rtsp://root:root2021!@CAMBOX53.uv.es/axis-media/media.amp",
+      "group": "URGENCIAS"
+    },
+    {
+      "id": "cambox61",
+      "name": "HOSPIT CAMBOX61",
+      "url": "rtsp://root:root2021!@CAMBOX61.uv.es/axis-media/media.amp",
+      "group": "HOSPIT"
+    },
+    {
+      "id": "cambox62",
+      "name": "HOSPIT CAMBOX62 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX62.uv.es/axis-media/media.amp",
+      "group": "HOSPIT"
+    },
+    {
+      "id": "cambox63",
+      "name": "HOSPIT CAMBOX63",
+      "url": "rtsp://root:root2021!@CAMBOX63.uv.es/axis-media/media.amp",
+      "group": "HOSPIT"
+    },
+    {
+      "id": "cambox71",
+      "name": "DOMICILIO CAMBOX71",
+      "url": "rtsp://root:root2021!@CAMBOX71.uv.es/axis-media/media.amp",
+      "group": "DOMICILIO"
+    },
+    {
+      "id": "cambox72",
+      "name": "DOMICILIO CAMBOX72",
+      "url": "rtsp://root:root2021!@CAMBOX72.uv.es/axis-media/media.amp",
+      "group": "DOMICILIO"
+    },
+    {
+      "id": "cambox73",
+      "name": "DOMIC CAMBOX73 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX73.uv.es/axis-media/media.amp",
+      "group": "DOMICILIO"
+    },
+    {
+      "id": "cambox74",
+      "name": "DOMICILIO CAMBOX74",
+      "url": "rtsp://root:root2021!@CAMBOX74.uv.es/axis-media/media.amp",
+      "group": "DOMICILIO"
+    },
+    {
+      "id": "cambox81",
+      "name": "AMBULANCIA CAMBOX81",
+      "url": "rtsp://root:root2021!@CAMBOX81.uv.es/axis-media/media.amp",
+      "group": "AMBULANCIA"
+    },
+    {
+      "id": "cambox82",
+      "name": "AMBU CAMBOX82 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX82.uv.es/axis-media/media.amp",
+      "group": "AMBULANCIA"
+    },
+    {
+      "id": "cambox83",
+      "name": "AMBULANCIA CAMBOX83",
+      "url": "rtsp://root:root2021!@CAMBOX83.uv.es/axis-media/media.amp",
+      "group": "AMBULANCIA"
+    },
+    {
+      "id": "cambox84",
+      "name": "AMBULANCIA CAMBOX84",
+      "url": "rtsp://root:root2021!@CAMBOX84.uv.es/axis-media/media.amp",
+      "group": "AMBULANCIA"
+    },
+    {
+      "id": "cambox91",
+      "name": "QUIROFANO CAMBOX91",
+      "url": "rtsp://root:root2021!@CAMBOX91.uv.es/axis-media/media.amp",
+      "group": "QUIROFANO"
+    },
+    {
+      "id": "cambox92",
+      "name": "QUIROF CAMBOX92 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX92.uv.es/axis-media/media.amp",
+      "group": "QUIROFANO"
+    },
+    {
+      "id": "cambox93",
+      "name": "QUIROFANO CAMBOX93",
+      "url": "rtsp://root:root2021!@CAMBOX93.uv.es/axis-media/media.amp",
+      "group": "QUIROFANO"
+    },
+    {
+      "id": "cambox101",
+      "name": "FISIO CAMBOX101 DOMO",
+      "url": "rtsp://root:root2021!@CAMBOX101.uv.es/axis-media/media.amp",
+      "group": "FISIO"
+    },
+    {
+      "id": "cambox102",
+      "name": "FISIO CAMBOX102",
+      "url": "rtsp://root:root2021!@CAMBOX102.uv.es/axis-media/media.amp",
+      "group": "FISIO"
+    },
+    {
+      "id": "cambox103",
+      "name": "FISIO CAMBOX103",
+      "url": "rtsp://root:root2021!@CAMBOX103.uv.es/axis-media/media.amp",
+      "group": "FISIO"
+    }
+  ]
+}

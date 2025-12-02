@@ -1,0 +1,639 @@
+---
+import Layout from "../layouts/Layout.astro";
+import cameras from "../../public/streams.json";
+
+const allCameras = cameras.streams;
+---
+
+<Layout>
+  <div class="controls" id="controls">
+    <div class="pagination">
+      <button class="page-btn" id="prev-btn">← Previous</button>
+      <span class="page-info" id="page-info">Loading...</span>
+      <button class="page-btn" id="next-btn">Next →</button>
+    </div>
+    <div class="grid-size-controls">
+      <label>Cameras per page:</label>
+      <button class="size-btn" data-size="4">4 (2×2)</button>
+      <button class="size-btn" data-size="9">9 (3×3)</button>
+      <button class="size-btn" data-size="16">16 (4×4)</button>
+      <button class="size-btn" data-size="25">25 (5×5)</button>
+    </div>
+  </div>
+
+  <div class="camera-grid" id="camera-grid"></div>
+</Layout>
+
+<script define:vars={{ allCameras }}>
+  // Get URL parameters using vanilla JS
+  const urlParams = new URLSearchParams(window.location.search);
+  let currentPage = parseInt(urlParams.get("page")) || 1;
+  let perPage = parseInt(urlParams.get("perPage")) || 16;
+  let hideControls = urlParams.get("hideControls") === "true";
+
+  const totalCameras = allCameras.length;
+  let activeFeed = null;
+
+  // Hide controls if parameter is set
+  const controlsEl = document.getElementById("controls");
+  if (hideControls && controlsEl) {
+    controlsEl.style.display = "none";
+    document.getElementById("camera-grid").style.height = "100vh";
+  }
+
+  function updateURL(page, size) {
+    const params = new URLSearchParams();
+    params.set("page", page);
+    params.set("perPage", size);
+    if (hideControls) {
+      params.set("hideControls", "true");
+    }
+    const newURL = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", newURL);
+  }
+
+  function renderCameras() {
+    const gridSize = Math.ceil(Math.sqrt(perPage));
+    const totalPages = Math.ceil(totalCameras / perPage);
+    currentPage = Math.min(currentPage, totalPages);
+
+    const startIndex = (currentPage - 1) * perPage;
+    const endIndex = Math.min(startIndex + perPage, totalCameras);
+    const displayCameras = allCameras.slice(startIndex, endIndex);
+
+    // Update grid layout
+    const grid = document.getElementById("camera-grid");
+    grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+    grid.innerHTML = "";
+
+    // Create camera feeds
+    displayCameras.forEach((camera) => {
+      const hlsUrl = `http://localhost:3001/hls/${camera.id}/stream.m3u8`;
+      const uniqueId = `video-${camera.id}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const feedDiv = document.createElement("div");
+      feedDiv.className = "camera-feed";
+      feedDiv.dataset.cameraId = camera.id;
+
+      feedDiv.innerHTML = `
+        <h2>${camera.name}</h2>
+        <video
+          id="${uniqueId}"
+          class="video-js vjs-default-skin"
+          controls
+          preload="auto"
+          playsinline
+        ></video>
+      `;
+
+      grid.appendChild(feedDiv);
+
+      // Initialize Video.js player
+      setTimeout(() => {
+        if (typeof videojs !== "undefined") {
+          const player = videojs(uniqueId, {
+            controls: true,
+            autoplay: true,
+            muted: true,
+            preload: "auto",
+            fluid: true,
+            responsive: true,
+            liveui: true,
+            liveTracker: {
+              trackingThreshold: 0,
+              liveTolerance: 15,  // Increased tolerance for live edge
+            },
+            html5: {
+              vhs: {
+                overrideNative: true,
+                enableLowInitialPlaylist: true,
+                smoothQualityChange: false,  // Disable smooth quality changes
+                useBandwidthFromLocalStorage: false,
+                bandwidth: 500000,  // Lower initial bandwidth estimate (500 kbps)
+                limitRenditionByPlayerDimensions: true,
+                useDevicePixelRatio: true,
+                experimentalBufferBasedABR: false,  // Disable experimental ABR
+                experimentalLLHLS: false,
+                handlePartialData: true,
+                // Aggressive buffering settings
+                maxPlaylistRetries: 2,
+                experimentalMaxMaxBufferLength: 10,  // Only buffer 10 seconds max
+                experimentalGetPartsAndSegments: false,
+              },
+              nativeVideoTracks: false,
+              nativeAudioTracks: false,
+              nativeTextTracks: false,
+            },
+          });
+
+          player.src({
+            src: hlsUrl,
+            type: "application/x-mpegURL",
+          });
+
+          // Aggressively keep player at live edge
+          player.on('loadedmetadata', function() {
+            if (player.liveTracker && player.liveTracker.isLive()) {
+              player.liveTracker.seekToLiveEdge();
+            }
+          });
+
+          // If buffering, seek to live edge
+          player.on('waiting', function() {
+            console.log(`${camera.id} buffering - attempting to recover...`);
+            setTimeout(() => {
+              if (player.liveTracker && player.liveTracker.isLive()) {
+                player.liveTracker.seekToLiveEdge();
+              }
+            }, 1000);
+          });
+
+          // Better error handling and recovery
+          player.on("error", function () {
+            const error = player.error();
+            console.error(`Error loading ${camera.id}:`, error);
+
+            // Try to recover from errors
+            if (error && error.code === 4) {
+              setTimeout(() => {
+                console.log(`Attempting to reload ${camera.id}`);
+                player.src({
+                  src: hlsUrl,
+                  type: "application/x-mpegURL",
+                });
+              }, 2000);
+            }
+          });
+
+          player.on("playing", function () {
+            console.log(`${camera.id} resumed playing`);
+          });
+        }
+      }, 100);
+
+      // Add click handler for focus
+      feedDiv.addEventListener("click", (e) => {
+        // If there's an active feed and clicking on a faded one, close the active feed
+        if (activeFeed && activeFeed !== e.currentTarget) {
+          const clickedOpacity = window.getComputedStyle(
+            e.currentTarget
+          ).opacity;
+          if (parseFloat(clickedOpacity) < 0.5) {
+            // Clicking on faded area, close the maximized feed
+            closeMaximizedFeed();
+            return;
+          }
+        }
+
+        const clickedFeed = e.currentTarget;
+        const cameraId = clickedFeed.dataset.cameraId;
+
+        // Toggle if clicking same feed or its clone
+        if (
+          activeFeed === clickedFeed ||
+          clickedFeed.classList.contains("clone-feed")
+        ) {
+          closeMaximizedFeed();
+          return;
+        }
+
+        // Deactivate previous if exists
+        if (activeFeed) {
+          closeMaximizedFeed();
+        }
+
+        // Create clone of the clicked feed
+        const rect = clickedFeed.getBoundingClientRect();
+        const clone = clickedFeed.cloneNode(true);
+        clone.classList.add("clone-feed");
+        clone.classList.add("active");
+
+        // Generate new unique ID for clone video
+        const cloneVideoId = `video-clone-${cameraId}-${Math.random().toString(36).substr(2, 9)}`;
+        const cloneVideo = clone.querySelector("video");
+        
+        // Remove all Video.js elements and start fresh
+        if (cloneVideo) {
+          // Get the video element and clean it completely
+          const newVideo = document.createElement('video');
+          newVideo.id = cloneVideoId;
+          newVideo.className = "video-js vjs-default-skin";
+          newVideo.setAttribute('controls', '');
+          newVideo.setAttribute('preload', 'auto');
+          newVideo.setAttribute('playsinline', '');
+          
+          // Replace the cloned video with the new one
+          cloneVideo.parentNode.replaceChild(newVideo, cloneVideo);
+        }
+
+        // Position clone at the exact position of original
+        clone.style.position = "fixed";
+        clone.style.top = rect.top + "px";
+        clone.style.left = rect.left + "px";
+        clone.style.width = rect.width + "px";
+        clone.style.height = rect.height + "px";
+        clone.style.margin = "0";
+        clone.style.transition = "none";
+        clone.style.zIndex = "1000";
+        clone.style.opacity = "0";
+
+        document.body.appendChild(clone);
+
+        // Initialize video player for clone after it's in the DOM
+        setTimeout(() => {
+          const videoElement = document.getElementById(cloneVideoId);
+          if (typeof videojs !== "undefined" && videoElement) {
+            const hlsUrl = `http://localhost:3001/hls/${cameraId}/stream.m3u8`;
+            
+            const clonePlayer = videojs(cloneVideoId, {
+              controls: true,
+              autoplay: true,
+              muted: true,
+              preload: "auto",
+              fluid: false,
+              responsive: false,
+              liveui: true,
+              liveTracker: {
+                trackingThreshold: 0,
+                liveTolerance: 15,
+              },
+              html5: {
+                vhs: {
+                  overrideNative: true,
+                  enableLowInitialPlaylist: true,
+                  smoothQualityChange: false,
+                  useBandwidthFromLocalStorage: false,
+                  bandwidth: 500000,
+                  limitRenditionByPlayerDimensions: true,
+                  useDevicePixelRatio: true,
+                  experimentalBufferBasedABR: false,
+                  experimentalLLHLS: false,
+                  handlePartialData: true,
+                  maxPlaylistRetries: 2,
+                  experimentalMaxMaxBufferLength: 10,
+                  experimentalGetPartsAndSegments: false,
+                },
+                nativeVideoTracks: false,
+                nativeAudioTracks: false,
+                nativeTextTracks: false,
+              },
+            });
+
+            clonePlayer.src({
+              src: hlsUrl,
+              type: "application/x-mpegURL",
+            });
+
+            // Aggressively keep clone player at live edge
+            clonePlayer.on('loadedmetadata', function() {
+              if (clonePlayer.liveTracker && clonePlayer.liveTracker.isLive()) {
+                clonePlayer.liveTracker.seekToLiveEdge();
+              }
+            });
+
+            // If buffering, seek to live edge
+            clonePlayer.on('waiting', function() {
+              console.log(`Clone ${cameraId} buffering - attempting to recover...`);
+              setTimeout(() => {
+                if (clonePlayer.liveTracker && clonePlayer.liveTracker.isLive()) {
+                  clonePlayer.liveTracker.seekToLiveEdge();
+                }
+              }, 1000);
+            });
+
+            // When clone is ready to play, crossfade
+            clonePlayer.one("canplay", function () {
+              // Start fade in clone
+              clone.style.transition = "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+              clone.style.opacity = "1";
+
+              // Simultaneously fade out and hide original, then animate clone to center
+              clickedFeed.style.transition =
+                "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+              clickedFeed.style.opacity = "0";
+
+              setTimeout(() => {
+                clone.style.top = "50%";
+                clone.style.left = "50%";
+                clone.style.width = "60vw";
+                clone.style.height = "60vh";
+                clone.style.transform = "translate(-50%, -50%)";
+              }, 100);
+            });
+
+            // Also handle errors
+            clonePlayer.on("error", function () {
+              console.error(`Error loading clone for ${cameraId}`);
+            });
+          }
+        }, 100);
+
+        // Add click handler to clone
+        clone.addEventListener("click", (e) => {
+          e.stopPropagation();
+          closeMaximizedFeed();
+        });
+
+        // Activate clicked feed (for reference)
+        activeFeed = clickedFeed;
+        clickedFeed.classList.add("active");
+        grid.classList.add("has-active");
+        pauseOtherVideos(clickedFeed);
+      });
+    });
+
+    function closeMaximizedFeed() {
+      const cloneElement = document.querySelector(".clone-feed");
+      if (cloneElement) {
+        // Animate clone back to original position
+        const originalFeed = document.querySelector(
+          `[data-camera-id="${cloneElement.dataset.cameraId}"]`
+        );
+        if (originalFeed) {
+          const rect = originalFeed.getBoundingClientRect();
+
+          // Fade out clone while moving back
+          cloneElement.style.transition =
+            "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+          cloneElement.style.width = rect.width + "px";
+          cloneElement.style.height = rect.height + "px";
+          cloneElement.style.top = rect.top + "px";
+          cloneElement.style.left = rect.left + "px";
+          cloneElement.style.transform = "none";
+          cloneElement.style.opacity = "0";
+
+          // Fade in original simultaneously
+          originalFeed.style.transition =
+            "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+          originalFeed.style.opacity = "1";
+
+          setTimeout(() => {
+            if (cloneElement.parentNode) {
+              // Get video player from clone and destroy it
+              const cloneVideo = cloneElement.querySelector("video");
+              if (cloneVideo) {
+                const clonePlayer = videojs.getPlayers()[cloneVideo.id];
+                if (clonePlayer) {
+                  clonePlayer.dispose();
+                }
+              }
+              cloneElement.remove();
+            }
+          }, 400);
+        }
+      }
+
+      grid.classList.remove("has-active");
+      if (activeFeed) {
+        activeFeed.classList.remove("active");
+      }
+      activeFeed = null;
+      resumeAllVideos();
+    }
+
+    // Update pagination info
+    if (!hideControls) {
+      document.getElementById("page-info").textContent =
+        `Page ${currentPage} of ${totalPages} | Showing ${displayCameras.length} cameras`;
+
+      document.getElementById("prev-btn").disabled = currentPage === 1;
+      document.getElementById("next-btn").disabled = currentPage === totalPages;
+
+      // Update active size button
+      document.querySelectorAll(".size-btn").forEach((btn) => {
+        btn.classList.toggle("active", parseInt(btn.dataset.size) === perPage);
+      });
+    }
+  }
+
+  function pauseOtherVideos(activeElement) {
+    document.querySelectorAll(".camera-feed").forEach((feed) => {
+      if (feed !== activeElement) {
+        const video = feed.querySelector("video");
+        if (video) {
+          const player = videojs.getPlayers()[video.id];
+          if (player && !player.paused()) {
+            player.pause();
+          }
+        }
+      }
+    });
+  }
+
+  function resumeAllVideos() {
+    document.querySelectorAll(".camera-feed").forEach((feed) => {
+      const video = feed.querySelector("video");
+      if (video) {
+        const player = videojs.getPlayers()[video.id];
+        if (player && player.paused()) {
+          player.play().catch(() => {});
+        }
+      }
+    });
+  }
+
+  // Event listeners for controls
+  if (!hideControls) {
+    document.getElementById("prev-btn").addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        updateURL(currentPage, perPage);
+        renderCameras();
+      }
+    });
+
+    document.getElementById("next-btn").addEventListener("click", () => {
+      const totalPages = Math.ceil(totalCameras / perPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        updateURL(currentPage, perPage);
+        renderCameras();
+      }
+    });
+
+    document.querySelectorAll(".size-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        perPage = parseInt(btn.dataset.size);
+        currentPage = 1;
+        updateURL(currentPage, perPage);
+        renderCameras();
+      });
+    });
+  }
+
+  // Initial render
+  document.addEventListener("DOMContentLoaded", () => {
+    // Wait for videojs to be available
+    function waitForVideoJS() {
+      if (typeof videojs !== "undefined") {
+        renderCameras();
+      } else {
+        setTimeout(waitForVideoJS, 100);
+      }
+    }
+    waitForVideoJS();
+  });
+
+  // Handle browser back/forward
+  window.addEventListener("popstate", () => {
+    const params = new URLSearchParams(window.location.search);
+    currentPage = parseInt(params.get("page")) || 1;
+    perPage = parseInt(params.get("perPage")) || 16;
+    renderCameras();
+  });
+</script>
+
+<style>
+  .controls {
+    background: #1a1a1a;
+    padding: 1rem;
+    border-bottom: 2px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .page-info {
+    color: #fff;
+    font-size: 0.9rem;
+  }
+
+  .page-btn,
+  .size-btn {
+    padding: 0.5rem 1rem;
+    background: #2a2a2a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.2s;
+    border: 1px solid #444;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+
+  .page-btn:hover:not(:disabled),
+  .size-btn:hover {
+    background: #3a3a3a;
+    border-color: #666;
+  }
+
+  .page-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .size-btn.active {
+    background: #4a7c59;
+    border-color: #5a9c79;
+  }
+
+  .grid-size-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .grid-size-controls label {
+    color: #fff;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+  }
+
+  .camera-grid {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    width: 100vw;
+    height: calc(100vh - 80px);
+    box-sizing: border-box;
+    background: #0a0a0a;
+    position: relative;
+    isolation: isolate;
+  }
+
+  :global(.camera-feed) {
+    position: relative;
+    cursor: pointer;
+    transition:
+      opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    opacity: 1;
+    background: #000;
+    border: 1px solid #222;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.camera-feed h2) {
+    margin: 0;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    background: #1a1a1a;
+    color: #fff;
+    border-bottom: 1px solid #333;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  :global(.camera-feed video) {
+    width: 100%;
+    height: 100%;
+    flex: 1;
+  }
+
+  :global(.video-js) {
+    width: 100%;
+    height: 100%;
+  }
+
+  :global(.camera-grid.has-active .camera-feed:not(.active)) {
+    opacity: 0.2;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Styles for the clone feed that appears in center */
+  :global(.clone-feed) {
+    cursor: pointer;
+    background: #000;
+    border: 2px solid #4a7c59 !important;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    will-change: transform, opacity, width, height, top, left;
+  }
+
+  :global(.clone-feed h2) {
+    font-size: 1.2rem !important;
+    padding: 1rem !important;
+    background: #2a2a2a !important;
+  }
+
+  :global(.camera-feed:hover:not(.active)) {
+    transform: scale(1.02);
+    z-index: 2;
+  }
+
+  @media (max-width: 1024px) {
+    .controls {
+      flex-direction: column;
+    }
+
+    .camera-grid {
+      height: calc(100vh - 120px);
+    }
+  }
+</style>
