@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>CESIS Multiview Cameras</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Segoe UI", Roboto, sans-serif;
+        --bg: #050505;
+        --panel: #101010;
+        --panel-alt: #141414;
+        --border: #222;
+        --accent: #4a7c59;
+        --text-dim: #b5b5b5;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        height: 100vh;
+        background: var(--bg);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.25rem;
+        overflow: hidden;
+      }
+
+      .app-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+      }
+
+      .app-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+      }
+
+      .instructions {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        flex-wrap: wrap;
+      }
+
+      .instruction-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .key {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.4);
+        min-width: 1.5rem;
+        text-align: center;
+      }
+
+      .status-text {
+        margin: 0;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        align-items: flex-end;
+      }
+
+      .filter-control {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 160px;
+      }
+
+      .filter-control label {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+      }
+
+      select {
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        color: #fff;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+
+      .grid-wrapper {
+        flex: 1;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      .camera-grid {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(260px, 1fr);
+        gap: 1rem;
+        padding-bottom: 1rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+
+      .camera-grid.single-room-view {
+        grid-auto-flow: row;
+        grid-auto-rows: min-content;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .room-column {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        height: fit-content;
+        max-height: 100%;
+        overflow-y: auto;
+      }
+
+      .single-room-column {
+        max-width: 100%;
+      }
+
+      .room-header h2 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .room-header span {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+      }
+
+      .camera-group h3,
+      .high-res-section h3 {
+        margin: 0 0 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        letter-spacing: 0.05em;
+      }
+
+      .camera-group,
+      .high-res-row {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .high-res-row {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      }
+
+      .camera-tile {
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        transition: border 0.2s, transform 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .camera-tile:hover {
+        transform: translateY(-2px);
+      }
+
+      .camera-tile.active-camera {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.4);
+      }
+
+      .camera-tile.emphasized {
+        border-width: 2px;
+      }
+
+      .camera-tile.emphasized .camera-preview {
+        aspect-ratio: 16 / 8;
+      }
+
+      .camera-preview {
+        height: 100%;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+        position: relative;
+      }
+
+      .camera-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        z-index: 1;
+      }
+
+      .loading-overlay.hidden {
+        display: none;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .loading-text {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        text-align: center;
+        padding: 0 1rem;
+      }
+
+      .camera-meta {
+        padding: 0 0.75rem 0.6rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+      }
+
+      .camera-ip {
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 0.8rem;
+      }
+
+      .camera-type {
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        letter-spacing: 0.05em;
+      }
+
+      .empty-state {
+        margin: 0;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+        grid-column: 1 / -1;
+      }
+
+      .fullscreen-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: var(--bg);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .fullscreen-overlay.active {
+        display: flex;
+      }
+
+      .fullscreen-overlay img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      }
+
+      .fullscreen-header {
+        position: absolute;
+        top: 2rem;
+        left: 2rem;
+        right: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .fullscreen-info {
+        background: var(--panel);
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      }
+
+      .fullscreen-info .room-name {
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .fullscreen-info .camera-details {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+      }
+
+      .fullscreen-close {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: #fff;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .fullscreen-close:hover {
+        background: var(--panel-alt);
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+
+      .fullscreen-controls {
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 1rem;
+        background: var(--panel);
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+
+      .fullscreen-btn {
+        background: var(--panel-alt);
+        border: 1px solid var(--border);
+        color: #fff;
+        padding: 0.65rem 1.25rem;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 120px;
+        justify-content: center;
+        text-decoration: none;
+      }
+
+      .fullscreen-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .fullscreen-btn.btn-settings {
+        border-color: var(--accent);
+        background: rgba(74, 124, 89, 0.15);
+      }
+
+      .fullscreen-btn.btn-settings:hover {
+        background: rgba(74, 124, 89, 0.25);
+        border-color: var(--accent);
+      }
+
+      .fullscreen-btn.btn-reboot {
+        border-color: #dc3545;
+        background: rgba(220, 53, 69, 0.15);
+      }
+
+      .fullscreen-btn.btn-reboot:hover {
+        background: rgba(220, 53, 69, 0.25);
+        border-color: #dc3545;
+      }
+
+      .fullscreen-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .fullscreen-btn:disabled:hover {
+        transform: none;
+        box-shadow: none;
+      }
+
+      @media (max-width: 900px) {
+        body {
+          padding: 1rem;
+        }
+
+        .camera-grid {
+          grid-auto-columns: minmax(220px, 1fr);
+        }
+
+        .high-res-row {
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>CESIS Multiview</h1>
+      <div class="instructions">
+        <div class="instruction-item">
+          <span>Doble click en una cámara para pantalla completa</span>
+        </div>
+        <div class="instruction-item">
+          <span>Mover:</span>
+          <kbd class="key">W</kbd>
+          <kbd class="key">A</kbd>
+          <kbd class="key">S</kbd>
+          <kbd class="key">D</kbd>
+        </div>
+        <div class="instruction-item">
+          <span>Zoom:</span>
+          <kbd class="key">Q</kbd>
+          <kbd class="key">E</kbd>
+          <kbd class="key">↑</kbd>
+          <kbd class="key">↓</kbd>
+        </div>
+        <div class="instruction-item">
+          <span>Home:</span>
+          <kbd class="key">Espacio</kbd>
+        </div>
+      </div>
+    </header>
+
+    <section class="filters">
+      <div class="filter-control">
+        <label for="room-filter">Sala</label>
+        <select id="room-filter">
+          <option value="all">Todas las salas</option>
+        </select>
+      </div>
+      <div class="filter-control">
+        <label for="floor-filter">Piso</label>
+        <select id="floor-filter">
+          <option value="all">Todos los pisos</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <div class="filter-control">
+        <label for="type-filter">Tipo de cámara</label>
+        <select id="type-filter">
+          <option value="all">Domo & Minidomo</option>
+          <option value="domo">Domo</option>
+          <option value="minidomo">Minidomo</option>
+        </select>
+      </div>
+    </section>
+
+    <main class="grid-wrapper">
+      <div id="camera-grid" class="camera-grid"></div>
+    </main>
+
+    <div id="fullscreen-overlay" class="fullscreen-overlay">
+      <div class="fullscreen-header">
+        <div class="fullscreen-info" id="fullscreen-info">
+          <span class="room-name" id="fullscreen-room"></span>
+          <span class="camera-details" id="fullscreen-details"></span>
+        </div>
+        <button class="fullscreen-close" id="fullscreen-close">
+          <span>✕</span>
+          <span>ESC</span>
+        </button>
+      </div>
+      <img id="fullscreen-image" src="" alt="Fullscreen camera" />
+      <div class="fullscreen-controls">
+        <a class="fullscreen-btn btn-settings" id="fullscreen-settings" href="#" target="_blank">
+          <span>⚙</span>
+          <span>Configuración</span>
+        </a>
+        <button class="fullscreen-btn btn-reboot" id="fullscreen-reboot">
+          <span>↻</span>
+          <span>Reiniciar</span>
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const STREAM_ENDPOINT = "http://localhost:8080/streams";
+      const PTZ_ENDPOINT = "http://localhost:8080/ptz";
+      const REBOOT_ENDPOINT = "http://localhost:8080/reboot";
+      const CREDENTIALS_ENDPOINT = "http://localhost:8080/credentials";
+      const MJPG_PATH = "/axis-cgi/mjpg/video.cgi?resolution=320x240";
+      const MJPG_HIGH_RES_PATH = "/axis-cgi/mjpg/video.cgi?resolution=1280x720";
+
+      let CAMERA_USERNAME = "root";
+      let CAMERA_PASSWORD = "";
+
+      const roomFilter = document.getElementById("room-filter");
+      const floorFilter = document.getElementById("floor-filter");
+      const typeFilter = document.getElementById("type-filter");
+      const cameraGrid = document.getElementById("camera-grid");
+      const activeCameraText = document.getElementById("active-camera-text");
+      const fullscreenOverlay = document.getElementById("fullscreen-overlay");
+      const fullscreenImage = document.getElementById("fullscreen-image");
+      const fullscreenInfo = document.getElementById("fullscreen-info");
+      const fullscreenRoom = document.getElementById("fullscreen-room");
+      const fullscreenDetails = document.getElementById("fullscreen-details");
+      const fullscreenClose = document.getElementById("fullscreen-close");
+      const fullscreenReboot = document.getElementById("fullscreen-reboot");
+      const fullscreenSettings = document.getElementById("fullscreen-settings");
+
+      let streamsData = {};
+      let orderedRooms = [];
+      let activeCam = null;
+      let isFullscreen = false;
+      let fullscreenIp = null;
+
+      const directionKeys = {
+        KeyW: "up",
+        KeyS: "down",
+        KeyA: "left",
+        KeyD: "right",
+      };
+
+      const actionKeys = {
+        KeyQ: "zoom+",
+        KeyE: "zoom-",
+      };
+
+      const zoomKeys = {
+        ArrowUp: 40,
+        ArrowDown: -40,
+      };
+
+      const pressedDirections = new Set();
+      const pressedZoomKeys = new Set();
+      let lastMoveCommand = "move=stop";
+      let lastZoomCommand = "continuouszoommove=0";
+
+      async function loadCredentials() {
+        try {
+          const response = await fetch(CREDENTIALS_ENDPOINT);
+          if (response.ok) {
+            const data = await response.json();
+            CAMERA_USERNAME = data.username;
+            CAMERA_PASSWORD = data.password;
+          }
+        } catch (error) {
+          console.error("Failed to load credentials", error);
+        }
+      }
+
+      async function loadStreams() {
+        try {
+          const response = await fetch(STREAM_ENDPOINT);
+          if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}`);
+          }
+          streamsData = await response.json();
+          orderedRooms = Object.keys(streamsData).sort((a, b) => a.localeCompare(b, "ca"));
+          populateRoomFilter();
+          const firstIp = findFirstCameraIp();
+          if (firstIp) {
+            activeCam = firstIp;
+          }
+          renderGrid();
+        } catch (error) {
+          console.error("Failed to load streams", error);
+        }
+      }
+
+      function populateRoomFilter() {
+        roomFilter.innerHTML = '<option value="all">Todas las salas</option>';
+        orderedRooms.forEach((room) => {
+          const option = document.createElement("option");
+          option.value = room;
+          option.textContent = room;
+          roomFilter.appendChild(option);
+        });
+      }
+
+      function getFloorNumber(roomName) {
+        const match = roomName.match(/^(\d)\./);
+        return match ? match[1] : null;
+      }
+
+      function findFirstCameraIp() {
+        for (const room of orderedRooms) {
+          const domo = streamsData[room]?.domo || [];
+          if (domo.length) return domo[0];
+          const mini = streamsData[room]?.minidomo || [];
+          if (mini.length) return mini[0];
+        }
+        return null;
+      }
+
+      function renderGrid() {
+        if (!cameraGrid) return;
+        cameraGrid.innerHTML = "";
+
+        const selectedRoom = roomFilter.value;
+        const selectedFloor = floorFilter.value;
+        const selectedType = typeFilter.value;
+        const isSingleRoom = selectedRoom !== "all";
+        cameraGrid.classList.toggle("single-room-view", isSingleRoom);
+
+        const roomsToRender = orderedRooms.filter((room) => {
+          if (selectedRoom !== "all" && room !== selectedRoom) {
+            return false;
+          }
+          const floor = getFloorNumber(room);
+          if (selectedFloor !== "all" && floor !== selectedFloor) {
+            return false;
+          }
+          return true;
+        });
+
+        if (isSingleRoom && roomsToRender.length === 1) {
+          renderSingleRoom(roomsToRender[0], selectedType);
+          setActiveCamera(activeCam);
+          return;
+        }
+
+        roomsToRender.forEach((room) => {
+          const roomData = streamsData[room];
+          if (!roomData) return;
+
+          const column = document.createElement("div");
+          column.className = "room-column";
+          column.dataset.room = room;
+
+          const header = document.createElement("div");
+          header.className = "room-header";
+          header.innerHTML = `<h2>${room}</h2><span>Floor ${getFloorNumber(room) ?? "?"}</span>`;
+          column.appendChild(header);
+
+          ["domo", "minidomo"].forEach((type) => {
+            if (selectedType !== "all" && selectedType !== type) {
+              return;
+            }
+            const ips = roomData[type] || [];
+            if (!ips.length) {
+              return;
+            }
+
+            const group = document.createElement("div");
+            group.className = "camera-group";
+            group.innerHTML = `<h3>${type.toUpperCase()}</h3>`;
+
+            ips.forEach((ip) => {
+              group.appendChild(createCameraTile(ip, type, room));
+            });
+
+            column.appendChild(group);
+          });
+
+          if (column.querySelector(".camera-tile")) {
+            cameraGrid.appendChild(column);
+          }
+        });
+
+        if (!cameraGrid.childElementCount) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = "No cameras match the selected filters.";
+          cameraGrid.appendChild(empty);
+        }
+
+        setActiveCamera(activeCam);
+      }
+
+      function renderSingleRoom(room, selectedType) {
+        const roomData = streamsData[room];
+        if (!roomData) {
+          cameraGrid.innerHTML = "";
+          return;
+        }
+
+        cameraGrid.innerHTML = "";
+        const column = document.createElement("div");
+        column.className = "room-column single-room-column";
+
+        const header = document.createElement("div");
+        header.className = "room-header";
+        header.innerHTML = `<h2>${room}</h2><span>Floor ${getFloorNumber(room) ?? "?"}</span>`;
+        column.appendChild(header);
+
+        const orderedTypes = ["domo", "minidomo"];
+        const allowedTypes = orderedTypes.filter((type) => selectedType === "all" || selectedType === type);
+        const highResEntries = allowedTypes.flatMap((type) => {
+          const ips = roomData[type] || [];
+          return ips.map((ip) => ({ ip, type }));
+        });
+
+        if (highResEntries.length) {
+          const highResSection = document.createElement("section");
+          highResSection.className = "high-res-section";
+          highResSection.innerHTML = "<h3>High-resolution row</h3>";
+          const row = document.createElement("div");
+          row.className = "high-res-row";
+          highResEntries.forEach(({ ip, type }) => {
+            row.appendChild(createCameraTile(ip, type, room, { highRes: true, emphasize: true }));
+          });
+          highResSection.appendChild(row);
+          column.appendChild(highResSection);
+        }
+
+        if (!column.querySelector(".camera-tile")) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = "No cameras match the selected filters.";
+          column.appendChild(empty);
+        }
+
+        cameraGrid.appendChild(column);
+      }
+
+      function createCameraTile(ip, type, room, options = {}) {
+        const tile = document.createElement("div");
+        const classes = ["camera-tile"];
+        if (options.emphasize) {
+          classes.push("emphasized");
+        }
+        tile.className = classes.join(" ");
+        tile.dataset.ip = ip;
+        tile.dataset.room = room;
+        tile.dataset.type = type;
+        const streamPath = options.highRes ? MJPG_HIGH_RES_PATH : MJPG_PATH;
+        const streamUrl = `http://${CAMERA_USERNAME}:${CAMERA_PASSWORD}@${ip}${streamPath}`;
+        tile.innerHTML = `
+          <div class="camera-preview">
+            <div class="loading-overlay">
+              <div class="spinner"></div>
+              <div class="loading-text">Cargando cámara...<br>Puede estar reiniciando</div>
+            </div>
+            <img loading="lazy" src="${streamUrl}" alt="Camera ${ip}" />
+          </div>
+          <div class="camera-meta">
+            <span class="camera-ip">${ip}</span>
+            <span class="camera-type">${type}</span>
+          </div>
+        `;
+        
+        const img = tile.querySelector("img");
+        const loadingOverlay = tile.querySelector(".loading-overlay");
+        const loadingText = tile.querySelector(".loading-text");
+        
+        img.addEventListener("load", () => {
+          loadingOverlay.classList.add("hidden");
+        });
+        
+        img.addEventListener("error", () => {
+          loadingText.innerHTML = "Cámara desconectada<br>Puede estar reiniciando";
+        });
+        
+        tile.addEventListener("click", () => setActiveCamera(ip));
+        tile.addEventListener("dblclick", () => openFullscreen(ip, type, room));
+        return tile;
+      }
+
+      function setActiveCamera(newIp) {
+        const tiles = Array.from(document.querySelectorAll(".camera-tile"));
+        if (!tiles.length) {
+          activeCam = newIp;
+          return;
+        }
+
+        let targetTile = tiles.find((tile) => tile.dataset.ip === newIp);
+        if (!targetTile) {
+          targetTile = tiles[0];
+        }
+        activeCam = targetTile.dataset.ip;
+        tiles.forEach((tile) => {
+          tile.classList.toggle("active-camera", tile.dataset.ip === activeCam);
+        });
+      }
+
+      function ptz(ip, command) {
+        if (!ip || !command) {
+          return;
+        }
+        const url = new URL(PTZ_ENDPOINT);
+        url.searchParams.set("ip", ip);
+        url.searchParams.set("command", command);
+        fetch(url).catch((error) => console.error("PTZ request failed", error));
+      }
+
+      function openFullscreen(ip, type, room) {
+        isFullscreen = true;
+        fullscreenIp = ip;
+        const hdStreamUrl = `http://${CAMERA_USERNAME}:${CAMERA_PASSWORD}@${ip}${MJPG_HIGH_RES_PATH}`;
+        fullscreenImage.src = hdStreamUrl;
+        fullscreenRoom.textContent = room;
+        fullscreenDetails.textContent = `${type.toUpperCase()} • ${ip}`;
+        fullscreenSettings.href = `http://${ip}`;
+        fullscreenOverlay.classList.add("active");
+        setActiveCamera(ip);
+      }
+
+      function closeFullscreen() {
+        isFullscreen = false;
+        fullscreenIp = null;
+        fullscreenOverlay.classList.remove("active");
+        fullscreenImage.src = "";
+      }
+
+      async function rebootCamera(ip) {
+        if (!confirm(`Reboot camera ${ip}?`)) return;
+        fullscreenReboot.disabled = true;
+        fullscreenReboot.textContent = "Rebooting...";
+        try {
+          const url = new URL(REBOOT_ENDPOINT);
+          url.searchParams.set("ip", ip);
+          const response = await fetch(url);
+          if (response.ok) {
+            alert(`Camera ${ip} is rebooting. It may take 1-2 minutes to come back online.`);
+          } else {
+            alert(`Failed to reboot camera ${ip}`);
+          }
+        } catch (error) {
+          console.error("Reboot failed", error);
+          alert(`Error rebooting camera ${ip}`);
+        } finally {
+          fullscreenReboot.disabled = false;
+          fullscreenReboot.textContent = "Reboot Camera";
+        }
+      }
+
+      function buildDirectionCommand() {
+        const hasUp = pressedDirections.has("KeyW");
+        const hasDown = pressedDirections.has("KeyS");
+        const hasLeft = pressedDirections.has("KeyA");
+        const hasRight = pressedDirections.has("KeyD");
+
+        let vertical = null;
+        if (hasUp && !hasDown) vertical = "up";
+        else if (hasDown && !hasUp) vertical = "down";
+
+        let horizontal = null;
+        if (hasRight && !hasLeft) horizontal = "right";
+        else if (hasLeft && !hasRight) horizontal = "left";
+
+        if (vertical && horizontal) {
+          return `move=${vertical}${horizontal}`;
+        }
+        if (vertical) {
+          return `move=${vertical}`;
+        }
+        if (horizontal) {
+          return `move=${horizontal}`;
+        }
+        return "move=stop";
+      }
+
+      function dispatchDirectionIfChanged() {
+        if (!activeCam) return;
+        const command = buildDirectionCommand();
+        if (command !== lastMoveCommand) {
+          lastMoveCommand = command;
+          ptz(activeCam, command);
+        }
+      }
+
+      function buildZoomCommand() {
+        const hasZoomIn = pressedZoomKeys.has("ArrowUp");
+        const hasZoomOut = pressedZoomKeys.has("ArrowDown");
+
+        if (hasZoomIn && !hasZoomOut) {
+          return `continuouszoommove=${zoomKeys.ArrowUp}`;
+        }
+        if (hasZoomOut && !hasZoomIn) {
+          return `continuouszoommove=${zoomKeys.ArrowDown}`;
+        }
+        return "continuouszoommove=0";
+      }
+
+      function dispatchZoomIfChanged() {
+        if (!activeCam) return;
+        const command = buildZoomCommand();
+        if (command !== lastZoomCommand) {
+          lastZoomCommand = command;
+          ptz(activeCam, command);
+        }
+      }
+
+      document.addEventListener("keydown", (evt) => {
+        if (evt.repeat) return;
+
+        if (directionKeys[evt.code]) {
+          evt.preventDefault();
+          pressedDirections.add(evt.code);
+          dispatchDirectionIfChanged();
+          return;
+        }
+
+        if (zoomKeys[evt.code]) {
+          evt.preventDefault();
+          pressedZoomKeys.add(evt.code);
+          dispatchZoomIfChanged();
+          return;
+        }
+
+        const action = actionKeys[evt.code];
+        if (!action) return;
+        evt.preventDefault();
+        const command = `move=${action}`;
+        lastMoveCommand = command;
+        if (activeCam) {
+          ptz(activeCam, command);
+        }
+      });
+
+      document.addEventListener("keyup", (evt) => {
+        if (directionKeys[evt.code]) {
+          pressedDirections.delete(evt.code);
+          dispatchDirectionIfChanged();
+          return;
+        }
+
+        if (zoomKeys[evt.code]) {
+          pressedZoomKeys.delete(evt.code);
+          dispatchZoomIfChanged();
+          return;
+        }
+
+        if (!actionKeys[evt.code]) return;
+        lastMoveCommand = "move=stop";
+        if (activeCam) {
+          ptz(activeCam, "move=stop");
+        }
+      });
+
+      document.addEventListener("keydown", (evt) => {
+        if (evt.code === "Space") {
+          evt.preventDefault();
+          lastMoveCommand = "move=home";
+          if (activeCam) {
+            ptz(activeCam, "move=home");
+          }
+        }
+      });
+
+      [roomFilter, floorFilter, typeFilter].forEach((select) => {
+        select.addEventListener("change", () => {
+          renderGrid();
+        });
+      });
+
+      fullscreenClose.addEventListener("click", closeFullscreen);
+
+      fullscreenReboot.addEventListener("click", () => {
+        if (fullscreenIp) {
+          rebootCamera(fullscreenIp);
+        }
+      });
+
+      document.addEventListener("keydown", (evt) => {
+        if (evt.code === "Escape" && isFullscreen) {
+          closeFullscreen();
+        }
+      });
+
+      loadCredentials().then(() => loadStreams());
+    </script>
+  </body>
+</html>

@@ -25,3 +25,5 @@ pnpm-debug.log*
 
 # runtime streaming artifacts
 hls/
+
+.vscode/
