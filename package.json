@@ -2,8 +2,39 @@
   "name": "cesis-multiview",
   "type": "module",
   "version": "0.0.1",
+  "main": "electron-main.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"node index.js\" \"wait-on http://localhost:8080 && electron .\"",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.cesis.multiview",
+    "productName": "CESIS Multiview",
+    "files": [
+      "electron-main.js",
+      "index.js",
+      "index.html",
+      "streams.json",
+      ".env.example",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png"
+    }
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -13,6 +44,9 @@
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.1"
   }
 }
