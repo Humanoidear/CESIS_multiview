@@ -92,14 +92,14 @@ app.get("/streams", async (_req, res) => {
   } catch (error) {
     console.error("Failed to read streams configuration", error);
     res.status(500).json({ error: "Unable to load streams configuration" });
-
-  app.get("/credentials", async (_req, res) => {
-    res.json({
-      username: CAMERA_USERNAME,
-      password: CAMERA_PASSWORD
-    });
-  });
   }
+});
+
+app.get("/credentials", async (_req, res) => {
+  res.json({
+    username: CAMERA_USERNAME,
+    password: CAMERA_PASSWORD
+  });
 });
 
 app.get("/ptz", async (req, res) => {
@@ -145,16 +145,16 @@ app.get("/reboot", async (req, res) => {
   });
 
   try {
-    const response = await fetchWithDigest(targetUrl, { 
-      username: CAMERA_USERNAME, 
-      password: CAMERA_PASSWORD, 
+    const response = await fetchWithDigest(targetUrl, {
+      username: CAMERA_USERNAME,
+      password: CAMERA_PASSWORD,
       method: "POST",
       body: payload,
       headers: {
         "Content-Type": "application/json"
       }
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Reboot failed for ${ip}: ${response.status} - ${errorText}`);
