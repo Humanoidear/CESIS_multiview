@@ -3,7 +3,12 @@ import fetch from "node-fetch";
 import cors from "cors";
 import crypto from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import dotenv from "dotenv";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config();
 
@@ -173,7 +178,7 @@ app.get("/reboot", async (req, res) => {
 app.use(express.static("dist"));
 
 app.get("/", (_req, res) => {
-  res.sendFile(new URL("index.html", import.meta.url).pathname.slice(1));
+  res.sendFile(join(__dirname, "index.html"));
 });
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
